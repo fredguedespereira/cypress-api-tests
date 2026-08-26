@@ -8,10 +8,11 @@ URL: http://localhost:3001/api-docs/
 
 The file contains 60+ test cases organized into 8 test suites:
 
-Happy Path - Basic Requests (5 tests)
+1. Happy Path - Basic Requests (5 tests)
 
 * Default parameters, pagination, size filters, industry filters, and combined filters
-  *Response Structure Validation (5 tests)
+
+2. Response Structure Validation (5 tests)
 
 Customer object validation, address structure, contactInfo structure, and pageInfo validation
 Size Filter Validation (6 tests)
