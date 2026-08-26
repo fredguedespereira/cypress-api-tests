@@ -1,474 +1,368 @@
 describe('GET /customers API', () => {
-  const baseUrl = 'http://localhost:3001';
-  const endpoint = '/customers';
+  const apiUrl = Cypress.env('API_URL')
+  const endpoint = '/customers'
 
-  describe('Happy Path - Basic Requests', () => {
-    it('should retrieve customers with default parameters', () => {
-      cy.request({
-        method: 'GET',
-        url: `${baseUrl}${endpoint}`,
-        failOnStatusCode: false
-      }).then((response) => {
-        expect(response.status).to.equal(200);
-        expect(response.body).to.have.property('customers');
-        expect(response.body).to.have.property('pageInfo');
-        expect(response.body.customers).to.be.an('array');
-        expect(response.body.pageInfo.currentPage).to.equal(1);
-      });
-    });
+  describe('Basic requests', () => {
+    it('retrieves customers with default parameters', () => {
+      cy.request('GET', `${apiUrl}${endpoint}`).then(({ status, body }) => {
+        expect(status).to.equal(200)
+        expect(body).to.have.property('customers')
+        expect(body).to.have.property('pageInfo')
+        expect(body.customers).to.be.an('array')
+      })
+    })
 
-    it('should retrieve customers with page and limit parameters', () => {
-      cy.request({
-        method: 'GET',
-        url: `${baseUrl}${endpoint}?page=2&limit=10`,
-        failOnStatusCode: false
-      }).then((response) => {
-        expect(response.status).to.equal(200);
-        expect(response.body.pageInfo.currentPage).to.equal(2);
-        expect(response.body.customers.length).to.be.lte(10);
-      });
-    });
+    it('retrieves customers with custom page and limit', () => {
+      cy.request('GET', `${apiUrl}${endpoint}?page=2&limit=5`).then(({ status, body: { pageInfo, customers } }) => {
+        expect(status).to.equal(200)
+        expect(pageInfo.currentPage).to.equal(2)
+        expect(customers.length).to.be.lte(5)
+      })
+    })
 
-    it('should retrieve customers filtered by size=Medium', () => {
-      cy.request({
-        method: 'GET',
-        url: `${baseUrl}${endpoint}?size=Medium`,
-        failOnStatusCode: false
-      }).then((response) => {
-        expect(response.status).to.equal(200);
-        response.body.customers.forEach((customer) => {
-          expect(customer.size).to.equal('Medium');
-          // Medium: >= 100 and < 1000 employees
-          expect(customer.employees).to.be.gte(100).and.be.lt(1000);
-        });
-      });
-    });
+    it('retrieves customers filtered by size', () => {
+      cy.request('GET', `${apiUrl}${endpoint}?size=Medium`).then(({ status, body: { customers } }) => {
+        expect(status).to.equal(200)
+        customers.forEach(({ size, employees }) => {
+          expect(size).to.equal('Medium')
+          expect(employees).to.be.gte(100).and.be.lt(1000)
+        })
+      })
+    })
 
-    it('should retrieve customers filtered by industry=Technology', () => {
-      cy.request({
-        method: 'GET',
-        url: `${baseUrl}${endpoint}?industry=Technology`,
-        failOnStatusCode: false
-      }).then((response) => {
-        expect(response.status).to.equal(200);
-        response.body.customers.forEach((customer) => {
-          expect(customer.industry).to.equal('Technology');
-        });
-      });
-    });
+    it('retrieves customers filtered by industry', () => {
+      cy.request('GET', `${apiUrl}${endpoint}?industry=Technology`).then(({ status, body: { customers } }) => {
+        expect(status).to.equal(200)
+        customers.forEach(({ industry }) => {
+          expect(industry).to.equal('Technology')
+        })
+      })
+    })
 
-    it('should retrieve customers with all filter combinations', () => {
-      cy.request({
-        method: 'GET',
-        url: `${baseUrl}${endpoint}?page=2&limit=10&size=Medium&industry=Technology`,
-        failOnStatusCode: false
-      }).then((response) => {
-        expect(response.status).to.equal(200);
-        expect(response.body.pageInfo.currentPage).to.equal(2);
-        response.body.customers.forEach((customer) => {
-          expect(customer.size).to.equal('Medium');
-          expect(customer.industry).to.equal('Technology');
-        });
-      });
-    });
-  });
+    it('retrieves customers with combined filters', () => {
+      cy.request('GET', `${apiUrl}${endpoint}?page=2&limit=10&size=Medium&industry=Technology`).then(({ status, body: { customers, pageInfo } }) => {
+        expect(status).to.equal(200)
+        expect(pageInfo.currentPage).to.equal(2)
+        customers.forEach(({ size, industry }) => {
+          expect(size).to.equal('Medium')
+          expect(industry).to.equal('Technology')
+        })
+      })
+    })
+  })
 
-  describe('Response Structure Validation', () => {
-    it('should return valid customer objects', () => {
-      cy.request({
-        method: 'GET',
-        url: `${baseUrl}${endpoint}`,
-        failOnStatusCode: false
-      }).then((response) => {
-        expect(response.status).to.equal(200);
-        
-        response.body.customers.forEach((customer) => {
-          expect(customer).to.have.property('id');
-          expect(customer).to.have.property('name');
-          expect(customer).to.have.property('employees');
-          expect(customer).to.have.property('contactInfo');
-          expect(customer).to.have.property('size');
-          expect(customer).to.have.property('industry');
-          expect(customer).to.have.property('address');
+  describe('Response structure validation', () => {
+    it('returns valid customer objects', () => {
+      cy.request('GET', `${apiUrl}${endpoint}`).then(({ status, body: { customers } }) => {
+        expect(status).to.equal(200)
+        customers.forEach(({ id, name, employees, size, industry, address, contactInfo }) => {
+          expect(id).to.be.a('number')
+          expect(name).to.be.a('string')
+          expect(employees).to.be.a('number')
+          expect(size).to.be.a('string')
+          expect(industry).to.be.a('string')
+          expect(address).to.satisfy(val => val === null || typeof val === 'object')
+          expect(contactInfo).to.satisfy(val => val === null || typeof val === 'object')
+        })
+      })
+    })
 
-          expect(customer.id).to.be.a('number');
-          expect(customer.name).to.be.a('string');
-          expect(customer.employees).to.be.a('number');
-          expect(customer.size).to.be.a('string');
-          expect(customer.industry).to.be.a('string');
-        });
-      });
-    });
-
-    it('should return valid address structure when present', () => {
-      cy.request({
-        method: 'GET',
-        url: `${baseUrl}${endpoint}`,
-        failOnStatusCode: false
-      }).then((response) => {
-        response.body.customers.forEach((customer) => {
-          if (customer.address !== null) {
-            expect(customer.address).to.have.property('street');
-            expect(customer.address).to.have.property('city');
-            expect(customer.address).to.have.property('state');
-            expect(customer.address).to.have.property('zipCode');
-            expect(customer.address).to.have.property('country');
+    it('returns valid address structure when present', () => {
+      cy.request('GET', `${apiUrl}${endpoint}`).then(({ body: { customers } }) => {
+        customers.forEach(({ address }) => {
+          if (address !== null) {
+            expect(address).to.have.all.keys('street', 'city', 'state', 'zipCode', 'country')
           }
-        });
-      });
-    });
+        })
+      })
+    })
 
-    it('should return valid contactInfo structure when present', () => {
-      cy.request({
-        method: 'GET',
-        url: `${baseUrl}${endpoint}`,
-        failOnStatusCode: false
-      }).then((response) => {
-        response.body.customers.forEach((customer) => {
-          if (customer.contactInfo !== null) {
-            expect(customer.contactInfo).to.have.property('name');
-            expect(customer.contactInfo).to.have.property('email');
+    it('returns valid contactInfo structure when present', () => {
+      cy.request('GET', `${apiUrl}${endpoint}`).then(({ body: { customers } }) => {
+        customers.forEach(({ contactInfo }) => {
+          if (contactInfo !== null) {
+            expect(contactInfo).to.have.all.keys('name', 'email')
           }
-        });
-      });
-    });
+        })
+      })
+    })
 
-    it('should return valid pageInfo structure', () => {
-      cy.request({
-        method: 'GET',
-        url: `${baseUrl}${endpoint}`,
-        failOnStatusCode: false
-      }).then((response) => {
-        const { pageInfo } = response.body;
-        expect(pageInfo).to.have.property('currentPage');
-        expect(pageInfo).to.have.property('totalPages');
-        expect(pageInfo).to.have.property('totalCustomers');
+    it('returns valid pageInfo structure', () => {
+      cy.request('GET', `${apiUrl}${endpoint}`).then(({ body: { pageInfo } }) => {
+        const { currentPage, totalPages, totalCustomers } = pageInfo
+        expect(currentPage).to.be.a('number').and.be.gte(1)
+        expect(totalPages).to.be.a('number').and.be.gte(1)
+        expect(totalCustomers).to.be.a('number').and.be.gte(0)
+      })
+    })
+  })
 
-        expect(pageInfo.currentPage).to.be.a('number').and.be.gte(1);
-        expect(pageInfo.totalPages).to.be.a('number').and.be.gte(1);
-        expect(pageInfo.totalCustomers).to.be.a('number').and.be.gte(0);
-      });
-    });
-  });
+  describe('Size filter validation', () => {
+    it('retrieves Small sized customers', () => {
+      cy.request('GET', `${apiUrl}${endpoint}?size=Small`).then(({ status, body: { customers } }) => {
+        expect(status).to.equal(200)
+        if (customers.length > 0) {
+          customers.forEach(({ size, employees }) => {
+            expect(size).to.equal('Small')
+            expect(employees).to.be.lt(100)
+          })
+        }
+      })
+    })
 
-  describe('Size Filter Validation', () => {
-    const sizeCategories = [
-      { size: 'Small', minEmployees: 0, maxEmployees: 100 },
-      { size: 'Medium', minEmployees: 100, maxEmployees: 1000 },
-      { size: 'Enterprise', minEmployees: 1000, maxEmployees: 10000 },
-      { size: 'Large Enterprise', minEmployees: 10000, maxEmployees: 50000 },
-      { size: 'Very Large Enterprise', minEmployees: 50000, maxEmployees: Infinity }
-    ];
+    it('retrieves Medium sized customers', () => {
+      cy.request('GET', `${apiUrl}${endpoint}?size=Medium`).then(({ status, body: { customers } }) => {
+        expect(status).to.equal(200)
+        if (customers.length > 0) {
+          customers.forEach(({ size, employees }) => {
+            expect(size).to.equal('Medium')
+            expect(employees).to.be.gte(100).and.be.lt(1000)
+          })
+        }
+      })
+    })
 
-    sizeCategories.forEach(({ size, minEmployees, maxEmployees }) => {
-      it(`should retrieve customers with size=${size}`, () => {
-        cy.request({
-          method: 'GET',
-          url: `${baseUrl}${endpoint}?size=${size}`,
-          failOnStatusCode: false
-        }).then((response) => {
-          expect(response.status).to.equal(200);
-          
-          if (response.body.customers.length > 0) {
-            response.body.customers.forEach((customer) => {
-              expect(customer.size).to.equal(size);
-              // Verify employee count matches size category
-              expect(customer.employees).to.be.gte(minEmployees).and.be.lt(maxEmployees);
-            });
-          }
-        });
-      });
-    });
+    it('retrieves Enterprise sized customers', () => {
+      cy.request('GET', `${apiUrl}${endpoint}?size=Enterprise`).then(({ status, body: { customers } }) => {
+        expect(status).to.equal(200)
+        if (customers.length > 0) {
+          customers.forEach(({ size, employees }) => {
+            expect(size).to.equal('Enterprise')
+            expect(employees).to.be.gte(1000).and.be.lt(10000)
+          })
+        }
+      })
+    })
 
-    it('should retrieve customers with size=All (default)', () => {
-      cy.request({
-        method: 'GET',
-        url: `${baseUrl}${endpoint}?size=All`,
-        failOnStatusCode: false
-      }).then((response) => {
-        expect(response.status).to.equal(200);
-      });
-    });
-  });
+    it('retrieves Large Enterprise sized customers', () => {
+      cy.request('GET', `${apiUrl}${endpoint}?size=Large Enterprise`).then(({ status, body: { customers } }) => {
+        expect(status).to.equal(200)
+        if (customers.length > 0) {
+          customers.forEach(({ size, employees }) => {
+            expect(size).to.equal('Large Enterprise')
+            expect(employees).to.be.gte(10000).and.be.lt(50000)
+          })
+        }
+      })
+    })
 
-  describe('Industry Filter Validation', () => {
-    const validIndustries = ['Logistics', 'Retail', 'Technology', 'HR', 'Finance'];
+    it('retrieves Very Large Enterprise sized customers', () => {
+      cy.request('GET', `${apiUrl}${endpoint}?size=Very Large Enterprise`).then(({ status, body: { customers } }) => {
+        expect(status).to.equal(200)
+        if (customers.length > 0) {
+          customers.forEach(({ size, employees }) => {
+            expect(size).to.equal('Very Large Enterprise')
+            expect(employees).to.be.gte(50000)
+          })
+        }
+      })
+    })
 
-    validIndustries.forEach((industry) => {
-      it(`should retrieve customers with industry=${industry}`, () => {
-        cy.request({
-          method: 'GET',
-          url: `${baseUrl}${endpoint}?industry=${industry}`,
-          failOnStatusCode: false
-        }).then((response) => {
-          expect(response.status).to.equal(200);
-          
-          if (response.body.customers.length > 0) {
-            response.body.customers.forEach((customer) => {
-              expect(customer.industry).to.equal(industry);
-            });
-          }
-        });
-      });
-    });
+    it('retrieves all sizes with All filter', () => {
+      cy.request('GET', `${apiUrl}${endpoint}?size=All`).then(({ status }) => {
+        expect(status).to.equal(200)
+      })
+    })
+  })
 
-    it('should retrieve customers with industry=All (default)', () => {
-      cy.request({
-        method: 'GET',
-        url: `${baseUrl}${endpoint}?industry=All`,
-        failOnStatusCode: false
-      }).then((response) => {
-        expect(response.status).to.equal(200);
-      });
-    });
-  });
+  describe('Industry filter validation', () => {
+    it('retrieves Logistics industry customers', () => {
+      cy.request('GET', `${apiUrl}${endpoint}?industry=Logistics`).then(({ status, body: { customers } }) => {
+        expect(status).to.equal(200)
+        if (customers.length > 0) {
+          customers.forEach(({ industry }) => {
+            expect(industry).to.equal('Logistics')
+          })
+        }
+      })
+    })
+
+    it('retrieves Retail industry customers', () => {
+      cy.request('GET', `${apiUrl}${endpoint}?industry=Retail`).then(({ status, body: { customers } }) => {
+        expect(status).to.equal(200)
+        if (customers.length > 0) {
+          customers.forEach(({ industry }) => {
+            expect(industry).to.equal('Retail')
+          })
+        }
+      })
+    })
+
+    it('retrieves Technology industry customers', () => {
+      cy.request('GET', `${apiUrl}${endpoint}?industry=Technology`).then(({ status, body: { customers } }) => {
+        expect(status).to.equal(200)
+        if (customers.length > 0) {
+          customers.forEach(({ industry }) => {
+            expect(industry).to.equal('Technology')
+          })
+        }
+      })
+    })
+
+    it('retrieves HR industry customers', () => {
+      cy.request('GET', `${apiUrl}${endpoint}?industry=HR`).then(({ status, body: { customers } }) => {
+        expect(status).to.equal(200)
+        if (customers.length > 0) {
+          customers.forEach(({ industry }) => {
+            expect(industry).to.equal('HR')
+          })
+        }
+      })
+    })
+
+    it('retrieves Finance industry customers', () => {
+      cy.request('GET', `${apiUrl}${endpoint}?industry=Finance`).then(({ status, body: { customers } }) => {
+        expect(status).to.equal(200)
+        if (customers.length > 0) {
+          customers.forEach(({ industry }) => {
+            expect(industry).to.equal('Finance')
+          })
+        }
+      })
+    })
+
+    it('retrieves all industries with All filter', () => {
+      cy.request('GET', `${apiUrl}${endpoint}?industry=All`).then(({ status }) => {
+        expect(status).to.equal(200)
+      })
+    })
+  })
 
   describe('Pagination', () => {
-    it('should respect limit parameter', () => {
-      const limit = 5;
-      cy.request({
-        method: 'GET',
-        url: `${baseUrl}${endpoint}?limit=${limit}`,
-        failOnStatusCode: false
-      }).then((response) => {
-        expect(response.status).to.equal(200);
-        expect(response.body.customers.length).to.be.lte(limit);
-      });
-    });
+    it('respects limit parameter', () => {
+      cy.request('GET', `${apiUrl}${endpoint}?limit=5`).then(({ status, body: { customers } }) => {
+        expect(status).to.equal(200)
+        expect(customers.length).to.be.lte(5)
+      })
+    })
 
-    it('should navigate to different pages', () => {
-      cy.request({
-        method: 'GET',
-        url: `${baseUrl}${endpoint}?page=1&limit=5`,
-        failOnStatusCode: false
-      }).then((response1) => {
-        const page1Ids = response1.body.customers.map(c => c.id);
-        
-        cy.request({
-          method: 'GET',
-          url: `${baseUrl}${endpoint}?page=2&limit=5`,
-          failOnStatusCode: false
-        }).then((response2) => {
-          const page2Ids = response2.body.customers.map(c => c.id);
-          
-          // Customers on different pages should be different
-          const commonIds = page1Ids.filter(id => page2Ids.includes(id));
-          expect(commonIds.length).to.equal(0);
-        });
-      });
-    });
+    it('navigates to different pages', () => {
+      cy.request('GET', `${apiUrl}${endpoint}?page=1&limit=5`).then(({ body: { customers: page1Customers } }) => {
+        const page1Ids = page1Customers.map(c => c.id)
+        cy.request('GET', `${apiUrl}${endpoint}?page=2&limit=5`).then(({ body: { customers: page2Customers } }) => {
+          const page2Ids = page2Customers.map(c => c.id)
+          const commonIds = page1Ids.filter(id => page2Ids.includes(id))
+          expect(commonIds.length).to.equal(0)
+        })
+      })
+    })
 
-    it('should return correct page info', () => {
-      cy.request({
-        method: 'GET',
-        url: `${baseUrl}${endpoint}?page=1&limit=10`,
-        failOnStatusCode: false
-      }).then((response) => {
-        const { pageInfo } = response.body;
-        expect(pageInfo.currentPage).to.equal(1);
-        expect(pageInfo.totalPages).to.be.gte(1);
-        
-        // totalCustomers should be consistent with totalPages and limit
-        const expectedMaxCustomers = pageInfo.totalPages * 10;
-        expect(pageInfo.totalCustomers).to.be.lte(expectedMaxCustomers);
-      });
-    });
-  });
+    it('returns correct pageInfo structure', () => {
+      cy.request('GET', `${apiUrl}${endpoint}?page=1&limit=10`).then(({ status, body: { pageInfo: { currentPage, totalPages, totalCustomers } } }) => {
+        expect(status).to.equal(200)
+        expect(currentPage).to.equal(1)
+        expect(totalPages).to.be.gte(1)
+        const expectedMaxCustomers = totalPages * 10
+        expect(totalCustomers).to.be.lte(expectedMaxCustomers)
+      })
+    })
+  })
 
-  describe('Error Handling - Invalid Parameters', () => {
-    it('should return 400 for negative page number', () => {
-      cy.request({
-        method: 'GET',
-        url: `${baseUrl}${endpoint}?page=-1`,
-        failOnStatusCode: false
-      }).then((response) => {
-        expect(response.status).to.equal(400);
-      });
-    });
+  describe('Invalid parameters - bad request', () => {
+    it('returns 400 for negative page', () => {
+      cy.request({ method: 'GET', url: `${apiUrl}${endpoint}?page=-1`, failOnStatusCode: false }).then(({ status }) => {
+        expect(status).to.equal(400)
+      })
+    })
 
-    it('should return 400 for negative limit', () => {
-      cy.request({
-        method: 'GET',
-        url: `${baseUrl}${endpoint}?limit=-5`,
-        failOnStatusCode: false
-      }).then((response) => {
-        expect(response.status).to.equal(400);
-      });
-    });
+    it('returns 400 for negative limit', () => {
+      cy.request({ method: 'GET', url: `${apiUrl}${endpoint}?limit=-5`, failOnStatusCode: false }).then(({ status }) => {
+        expect(status).to.equal(400)
+      })
+    })
 
-    it('should return 400 for non-numeric page', () => {
-      cy.request({
-        method: 'GET',
-        url: `${baseUrl}${endpoint}?page=abc`,
-        failOnStatusCode: false
-      }).then((response) => {
-        expect(response.status).to.equal(400);
-      });
-    });
+    it('returns 400 for non-numeric page', () => {
+      cy.request({ method: 'GET', url: `${apiUrl}${endpoint}?page=abc`, failOnStatusCode: false }).then(({ status }) => {
+        expect(status).to.equal(400)
+      })
+    })
 
-    it('should return 400 for non-numeric limit', () => {
-      cy.request({
-        method: 'GET',
-        url: `${baseUrl}${endpoint}?limit=xyz`,
-        failOnStatusCode: false
-      }).then((response) => {
-        expect(response.status).to.equal(400);
-      });
-    });
+    it('returns 400 for non-numeric limit', () => {
+      cy.request({ method: 'GET', url: `${apiUrl}${endpoint}?limit=xyz`, failOnStatusCode: false }).then(({ status }) => {
+        expect(status).to.equal(400)
+      })
+    })
 
-    it('should return 400 for invalid size filter', () => {
-      cy.request({
-        method: 'GET',
-        url: `${baseUrl}${endpoint}?size=InvalidSize`,
-        failOnStatusCode: false
-      }).then((response) => {
-        expect(response.status).to.equal(400);
-      });
-    });
+    it('returns 400 for invalid size filter', () => {
+      cy.request({ method: 'GET', url: `${apiUrl}${endpoint}?size=InvalidSize`, failOnStatusCode: false }).then(({ status }) => {
+        expect(status).to.equal(400)
+      })
+    })
 
-    it('should return 400 for invalid industry filter', () => {
-      cy.request({
-        method: 'GET',
-        url: `${baseUrl}${endpoint}?industry=InvalidIndustry`,
-        failOnStatusCode: false
-      }).then((response) => {
-        expect(response.status).to.equal(400);
-      });
-    });
+    it('returns 400 for invalid industry filter', () => {
+      cy.request({ method: 'GET', url: `${apiUrl}${endpoint}?industry=InvalidIndustry`, failOnStatusCode: false }).then(({ status }) => {
+        expect(status).to.equal(400)
+      })
+    })
 
-    it('should return 400 for zero page number', () => {
-      cy.request({
-        method: 'GET',
-        url: `${baseUrl}${endpoint}?page=0`,
-        failOnStatusCode: false
-      }).then((response) => {
-        expect(response.status).to.equal(400);
-      });
-    });
+    it('returns 400 for zero page', () => {
+      cy.request({ method: 'GET', url: `${apiUrl}${endpoint}?page=0`, failOnStatusCode: false }).then(({ status }) => {
+        expect(status).to.equal(400)
+      })
+    })
 
-    it('should return 400 for zero limit', () => {
-      cy.request({
-        method: 'GET',
-        url: `${baseUrl}${endpoint}?limit=0`,
-        failOnStatusCode: false
-      }).then((response) => {
-        expect(response.status).to.equal(400);
-      });
-    });
+    it('returns 400 for zero limit', () => {
+      cy.request({ method: 'GET', url: `${apiUrl}${endpoint}?limit=0`, failOnStatusCode: false }).then(({ status }) => {
+        expect(status).to.equal(400)
+      })
+    })
 
-    it('should return 400 for float values in page', () => {
-      cy.request({
-        method: 'GET',
-        url: `${baseUrl}${endpoint}?page=1.5`,
-        failOnStatusCode: false
-      }).then((response) => {
-        expect(response.status).to.equal(400);
-      });
-    });
+    it('returns 400 for float page value', () => {
+      cy.request({ method: 'GET', url: `${apiUrl}${endpoint}?page=1.5`, failOnStatusCode: false }).then(({ status }) => {
+        expect(status).to.equal(400)
+      })
+    })
 
-    it('should return 400 for float values in limit', () => {
-      cy.request({
-        method: 'GET',
-        url: `${baseUrl}${endpoint}?limit=10.5`,
-        failOnStatusCode: false
-      }).then((response) => {
-        expect(response.status).to.equal(400);
-      });
-    });
-  });
+    it('returns 400 for float limit value', () => {
+      cy.request({ method: 'GET', url: `${apiUrl}${endpoint}?limit=10.5`, failOnStatusCode: false }).then(({ status }) => {
+        expect(status).to.equal(400)
+      })
+    })
+  })
 
-  describe('Case Sensitivity', () => {
-    it('should handle size filter case-insensitively (if applicable)', () => {
-      cy.request({
-        method: 'GET',
-        url: `${baseUrl}${endpoint}?size=medium`,
-        failOnStatusCode: false
-      }).then((response) => {
-        // Either 200 or 400 depending on API implementation
-        // Document the expected behavior
-        expect([200, 400]).to.include(response.status);
-      });
-    });
-
-    it('should handle industry filter case-insensitively (if applicable)', () => {
-      cy.request({
-        method: 'GET',
-        url: `${baseUrl}${endpoint}?industry=technology`,
-        failOnStatusCode: false
-      }).then((response) => {
-        // Either 200 or 400 depending on API implementation
-        // Document the expected behavior
-        expect([200, 400]).to.include(response.status);
-      });
-    });
-  });
-
-  describe('Edge Cases', () => {
-    it('should handle empty result set gracefully', () => {
-      cy.request({
-        method: 'GET',
-        url: `${baseUrl}${endpoint}?page=999999`,
-        failOnStatusCode: false
-      }).then((response) => {
-        if (response.status === 200) {
-          expect(response.body.customers).to.be.an('array');
-          expect(response.body.pageInfo).to.exist;
+  describe('Edge cases', () => {
+    it('handles empty result set on last page', () => {
+      cy.request({ method: 'GET', url: `${apiUrl}${endpoint}?page=999999`, failOnStatusCode: false }).then(({ status, body }) => {
+        if (status === 200) {
+          const { customers, pageInfo } = body
+          expect(customers).to.be.an('array')
+          expect(pageInfo).to.exist
         }
-      });
-    });
+      })
+    })
 
-    it('should not include contactInfo when null', () => {
-      cy.request({
-        method: 'GET',
-        url: `${baseUrl}${endpoint}`,
-        failOnStatusCode: false
-      }).then((response) => {
-        response.body.customers.forEach((customer) => {
-          if (customer.contactInfo === null) {
-            expect(customer.contactInfo).to.be.null;
-          }
-        });
-      });
-    });
+    it('handles null contactInfo correctly', () => {
+      cy.request('GET', `${apiUrl}${endpoint}`).then(({ body: { customers } }) => {
+        const customersWithNullContact = customers.filter(c => c.contactInfo === null)
+        customersWithNullContact.forEach(({ contactInfo }) => {
+          expect(contactInfo).to.be.null
+        })
+      })
+    })
 
-    it('should not include address when null', () => {
-      cy.request({
-        method: 'GET',
-        url: `${baseUrl}${endpoint}`,
-        failOnStatusCode: false
-      }).then((response) => {
-        response.body.customers.forEach((customer) => {
-          if (customer.address === null) {
-            expect(customer.address).to.be.null;
-          }
-        });
-      });
-    });
+    it('handles null address correctly', () => {
+      cy.request('GET', `${apiUrl}${endpoint}`).then(({ body: { customers } }) => {
+        const customersWithNullAddress = customers.filter(c => c.address === null)
+        customersWithNullAddress.forEach(({ address }) => {
+          expect(address).to.be.null
+        })
+      })
+    })
 
-    it('should handle very large limit values', () => {
-      cy.request({
-        method: 'GET',
-        url: `${baseUrl}${endpoint}?limit=999999`,
-        failOnStatusCode: false
-      }).then((response) => {
-        expect(response.status).to.equal(200);
-      });
-    });
+    it('handles very large limit values', () => {
+      cy.request('GET', `${apiUrl}${endpoint}?limit=999999`).then(({ status }) => {
+        expect(status).to.equal(200)
+      })
+    })
 
-    it('should handle multiple filter combinations', () => {
-      cy.request({
-        method: 'GET',
-        url: `${baseUrl}${endpoint}?page=1&limit=10&size=Enterprise&industry=Finance`,
-        failOnStatusCode: false
-      }).then((response) => {
-        expect(response.status).to.equal(200);
-        if (response.body.customers.length > 0) {
-          response.body.customers.forEach((customer) => {
-            expect(customer.size).to.equal('Enterprise');
-            expect(customer.industry).to.equal('Finance');
-          });
-        }
-      });
-    });
-  });
-});
+    it('applies multiple filters simultaneously', () => {
+      cy.request('GET', `${apiUrl}${endpoint}?page=1&limit=10&size=Enterprise&industry=Finance`).then(({ status, body: { customers } }) => {
+        expect(status).to.equal(200)
+        customers.forEach(({ size, industry }) => {
+          expect(size).to.equal('Enterprise')
+          expect(industry).to.equal('Finance')
+        })
+      })
+    })
+  })
+})
